@@ -1,5 +1,6 @@
 import random
 import heapq
+import copy
 from collections import deque
 
 class Process:
@@ -15,7 +16,7 @@ class Process:
         self.waiting = 0
         self.turnaround = 0
 
-  def generate_processes(n, seed=42):
+def generate_processes(n, seed=42):
     random.seed(seed)
 
     processes = []
@@ -104,14 +105,17 @@ def priority_scheduling(processes):
     while i < len(processes) or ready:
 
         while i < len(processes) and processes[i].arrival <= time:
-            heapq.heappush(ready, (processes[i].priority, processes[i]))
+            heapq.heappush(
+                ready,
+                (processes[i].priority, processes[i].arrival, processes[i].pid, processes[i])
+            )
             i += 1
 
         if not ready:
             time = processes[i].arrival
             continue
 
-        _, p = heapq.heappop(ready)
+        _, _, _, p = heapq.heappop(ready)
 
         if time < p.arrival:
             time = p.arrival
@@ -159,18 +163,20 @@ def gwo_schedule(processes, iterations=10):
     return best
 
 def run_all(n):
-    base = generate_processes(n)
-
     results = {}
 
-    for name, algo in [
+    algorithms = [
         ("FIFO", fifo),
         ("Round Robin", lambda x: round_robin(x, 2)),
         ("Priority", priority_scheduling),
         ("GWO", gwo_schedule)
-    ]:
+    ]
 
-        processes = generate_processes(n)  # fresh copy for fairness
+    for name, algo in algorithms:
+
+        processes = generate_processes(n)
+        processes = copy.deepcopy(processes)  
+
         completed = algo(processes)
 
         metrics = compute_metrics(completed)
@@ -179,6 +185,6 @@ def run_all(n):
     print(f"\n--- Results for {n} tasks ---")
     for k, v in results.items():
         print(f"{k}: AvgWait={v[0]:.2f}, AvgTurn={v[1]:.2f}, Throughput={v[2]:.2f}")
-
-  for size in [10, 50, 100, 500, 1000]:
+        
+for size in [10, 50, 100, 500, 1000]:
     run_all(size)
