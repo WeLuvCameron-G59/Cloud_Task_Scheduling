@@ -1,8 +1,13 @@
 import random
 import heapq
 import copy
+import time
+import csv
 from collections import deque
 
+# ----------------------------
+# Process Model
+# ----------------------------
 class Process:
     def __init__(self, pid, arrival, burst, priority=1):
         self.pid = pid
@@ -16,18 +21,26 @@ class Process:
         self.waiting = 0
         self.turnaround = 0
 
+
+# ----------------------------
+# Workload Generator
+# ----------------------------
 def generate_processes(n, seed=42):
     random.seed(seed)
 
     processes = []
     for i in range(n):
-        arrival = i  # deterministic arrival
+        arrival = i
         burst = random.randint(1, 10)
         priority = random.randint(1, 5)
         processes.append(Process(f"P{i+1}", arrival, burst, priority))
 
     return processes
 
+
+# ----------------------------
+# Metrics
+# ----------------------------
 def compute_metrics(processes):
     n = len(processes)
 
@@ -42,8 +55,29 @@ def compute_metrics(processes):
 
     return avg_wait, avg_turn, throughput
 
+
+# ----------------------------
+# FIFO
+# ----------------------------
+def fifo(processes):
+    time_now = 0
+
+    for p in processes:
+        if time_now < p.arrival:
+            time_now = p.arrival
+
+        p.start = time_now
+        p.completion = time_now + p.burst
+        time_now = p.completion
+
+    return processes
+
+
+# ----------------------------
+# Round Robin
+# ----------------------------
 def round_robin(processes, quantum=2):
-    time = 0
+    time_now = 0
     queue = deque()
 
     processes.sort(key=lambda x: x.arrival)
@@ -52,50 +86,41 @@ def round_robin(processes, quantum=2):
 
     while i < len(processes) or queue:
 
-        while i < len(processes) and processes[i].arrival <= time:
+        while i < len(processes) and processes[i].arrival <= time_now:
             queue.append(processes[i])
             i += 1
 
         if not queue:
-            time = processes[i].arrival
+            time_now = processes[i].arrival
             continue
 
         p = queue.popleft()
 
         if p.start == -1:
-            p.start = time
+            p.start = time_now
 
         exec_time = min(quantum, p.remaining)
         p.remaining -= exec_time
-        time += exec_time
+        time_now += exec_time
 
-        while i < len(processes) and processes[i].arrival <= time:
+        while i < len(processes) and processes[i].arrival <= time_now:
             queue.append(processes[i])
             i += 1
 
         if p.remaining > 0:
             queue.append(p)
         else:
-            p.completion = time
+            p.completion = time_now
             completed.append(p)
 
     return completed
 
-def fifo(processes):
-    time = 0
 
-    for p in processes:
-        if time < p.arrival:
-            time = p.arrival
-
-        p.start = time
-        p.completion = time + p.burst
-        time = p.completion
-
-    return processes
-
+# ----------------------------
+# Priority Scheduling
+# ----------------------------
 def priority_scheduling(processes):
-    time = 0
+    time_now = 0
     completed = []
     ready = []
 
@@ -104,7 +129,7 @@ def priority_scheduling(processes):
 
     while i < len(processes) or ready:
 
-        while i < len(processes) and processes[i].arrival <= time:
+        while i < len(processes) and processes[i].arrival <= time_now:
             heapq.heappush(
                 ready,
                 (processes[i].priority, processes[i].arrival, processes[i].pid, processes[i])
@@ -112,79 +137,118 @@ def priority_scheduling(processes):
             i += 1
 
         if not ready:
-            time = processes[i].arrival
+            time_now = processes[i].arrival
             continue
 
         _, _, _, p = heapq.heappop(ready)
 
-        if time < p.arrival:
-            time = p.arrival
-
-        p.start = time
-        p.completion = time + p.burst
-        time = p.completion
+        p.start = time_now
+        p.completion = time_now + p.burst
+        time_now = p.completion
 
         completed.append(p)
 
     return completed
 
+
+# ----------------------------
+# Grey Wolf Optimization
+# ----------------------------
 def gwo_schedule(processes, iterations=10):
-    wolves = [processes[:] for _ in range(5)]  # population of schedules
+    # FIX: deep copy wolves
+    wolves = [copy.deepcopy(processes) for _ in range(5)]
 
     def fitness(schedule):
-        time = 0
+        time_now = 0
         total_wait = 0
 
         for p in schedule:
-            time = max(time, p.arrival)
-            total_wait += time - p.arrival
-            time += p.burst
+            time_now = max(time_now, p.arrival)
+            total_wait += time_now - p.arrival
+            time_now += p.burst
 
         return total_wait
-
-    best = min(wolves, key=fitness)
 
     for _ in range(iterations):
         wolves.sort(key=fitness)
         best = wolves[0]
 
-        # "movement" toward best solution (simplified)
         for i in range(1, len(wolves)):
-            wolves[i] = best[:]
+            wolves[i] = copy.deepcopy(best)
+
+    best = wolves[0]
 
     # execute best schedule
-    time = 0
+    time_now = 0
     for p in best:
-        time = max(time, p.arrival)
-        p.start = time
-        p.completion = time + p.burst
-        time = p.completion
+        time_now = max(time_now, p.arrival)
+        p.start = time_now
+        p.completion = time_now + p.burst
+        time_now = p.completion
 
     return best
 
-def run_all(n):
-    results = {}
+
+# ----------------------------
+# Experiment Runner (multi-trial)
+# ----------------------------
+def run_experiments(task_sizes, trials=30):
+    all_results = []
 
     algorithms = [
         ("FIFO", fifo),
-        ("Round Robin", lambda x: round_robin(x, 2)),
+        ("RoundRobin", lambda x: round_robin(x, 2)),
         ("Priority", priority_scheduling),
         ("GWO", gwo_schedule)
     ]
 
-    for name, algo in algorithms:
+    for n in task_sizes:
+        for t in range(trials):
+            for name, algo in algorithms:
 
-        processes = generate_processes(n)
-        processes = copy.deepcopy(processes)  
+                processes = generate_processes(n, seed=42 + t)
+                processes = copy.deepcopy(processes)
 
-        completed = algo(processes)
+                # measure execution time
+                start = time.time()
+                completed = algo(processes)
+                end = time.time()
 
-        metrics = compute_metrics(completed)
-        results[name] = metrics
+                avg_wait, avg_turn, throughput = compute_metrics(completed)
 
-    print(f"\n--- Results for {n} tasks ---")
-    for k, v in results.items():
-        print(f"{k}: AvgWait={v[0]:.2f}, AvgTurn={v[1]:.2f}, Throughput={v[2]:.2f}")
-        
-for size in [10, 50, 100, 500, 1000]:
-    run_all(size)
+                all_results.append({
+                    "tasks": n,
+                    "trial": t,
+                    "algorithm": name,
+                    "waiting": avg_wait,
+                    "turnaround": avg_turn,
+                    "throughput": throughput,
+                    "runtime": end - start
+                })
+
+        print(f"Completed experiments for {n} tasks")
+
+    return all_results
+
+
+# ----------------------------
+# Save CSV
+# ----------------------------
+def save_results(results, filename="results.csv"):
+    keys = results[0].keys()
+
+    with open(filename, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(results)
+
+    print(f"Results saved to {filename}")
+
+
+# ----------------------------
+# MAIN
+# ----------------------------
+if __name__ == "__main__":
+    task_sizes = [10, 50, 100, 500]
+    results = run_experiments(task_sizes, trials=30)
+    save_results(results)
