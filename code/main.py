@@ -3,6 +3,7 @@ import heapq
 import copy
 import time
 import csv
+import pandas as pd
 from collections import deque
 
 # ----------------------------
@@ -155,7 +156,6 @@ def priority_scheduling(processes):
 # Grey Wolf Optimization
 # ----------------------------
 def gwo_schedule(processes, iterations=10):
-    # FIX: deep copy wolves
     wolves = [copy.deepcopy(processes) for _ in range(5)]
 
     def fitness(schedule):
@@ -178,7 +178,6 @@ def gwo_schedule(processes, iterations=10):
 
     best = wolves[0]
 
-    # execute best schedule
     time_now = 0
     for p in best:
         time_now = max(time_now, p.arrival)
@@ -190,7 +189,7 @@ def gwo_schedule(processes, iterations=10):
 
 
 # ----------------------------
-# Experiment Runner (multi-trial)
+# Run Experiments
 # ----------------------------
 def run_experiments(task_sizes, trials=30):
     all_results = []
@@ -209,7 +208,6 @@ def run_experiments(task_sizes, trials=30):
                 processes = generate_processes(n, seed=42 + t)
                 processes = copy.deepcopy(processes)
 
-                # measure execution time
                 start = time.time()
                 completed = algo(processes)
                 end = time.time()
@@ -226,13 +224,13 @@ def run_experiments(task_sizes, trials=30):
                     "runtime": end - start
                 })
 
-        print(f"Completed experiments for {n} tasks")
+        print(f"Completed {n} tasks")
 
     return all_results
 
 
 # ----------------------------
-# Save CSV
+# Save Raw CSV
 # ----------------------------
 def save_results(results, filename="results.csv"):
     keys = results[0].keys()
@@ -242,7 +240,38 @@ def save_results(results, filename="results.csv"):
         writer.writeheader()
         writer.writerows(results)
 
-    print(f"Results saved to {filename}")
+    print(f"Saved raw data → {filename}")
+
+
+# ----------------------------
+# Create CLEAN Summary CSV
+# ----------------------------
+def create_summary(filename="results.csv"):
+    df = pd.read_csv(filename)
+
+    # Round for readability
+    df["waiting"] = df["waiting"].round(2)
+    df["turnaround"] = df["turnaround"].round(2)
+    df["throughput"] = df["throughput"].round(3)
+    df["runtime"] = df["runtime"].round(6)
+
+    summary = df.groupby(["tasks", "algorithm"]).agg({
+        "waiting": ["mean", "std"],
+        "turnaround": ["mean", "std"],
+        "throughput": ["mean"],
+        "runtime": ["mean"]
+    }).reset_index()
+
+    summary.columns = [
+        "tasks", "algorithm",
+        "wait_mean", "wait_std",
+        "turn_mean", "turn_std",
+        "throughput_mean",
+        "runtime_mean"
+    ]
+
+    summary.to_csv("summary_results.csv", index=False)
+    print("Saved clean summary → summary_results.csv")
 
 
 # ----------------------------
@@ -251,4 +280,6 @@ def save_results(results, filename="results.csv"):
 if __name__ == "__main__":
     task_sizes = [10, 50, 100, 500]
     results = run_experiments(task_sizes, trials=30)
+
     save_results(results)
+    create_summary()
