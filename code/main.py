@@ -277,11 +277,7 @@ def create_summary(filename="results.csv"):
 # ----------------------------
 # Boxplot matplot
 # ----------------------------
-df.boxplot(column="waiting", by=["algorithm", "tasks"])
-plt.title("Waiting Time Distribution")
-plt.suptitle("")
-plt.xticks(rotation=45)
-plt.show()
+
 # ----------------------------
 # MAIN
 # ----------------------------
@@ -291,3 +287,10 @@ if __name__ == "__main__":
 
     save_results(results)
     create_summary()
+    # Load results for plotting
+    df = pd.read_csv("results.csv")
+    df.boxplot(column="waiting", by=["algorithm", "tasks"])
+    plt.title("Waiting Time Distribution")
+    plt.suptitle("")
+    plt.xticks(rotation=45)
+    plt.show()
