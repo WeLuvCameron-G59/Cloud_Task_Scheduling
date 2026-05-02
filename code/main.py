@@ -4,6 +4,7 @@ import copy
 import time
 import csv
 import pandas as pd
+import matplotlib.pyplot as plt
 from collections import deque
 
 # ----------------------------
@@ -273,7 +274,14 @@ def create_summary(filename="results.csv"):
     summary.to_csv("summary_results.csv", index=False)
     print("Saved clean summary → summary_results.csv")
 
-
+# ----------------------------
+# Boxplot matplot
+# ----------------------------
+df.boxplot(column="waiting", by=["algorithm", "tasks"])
+plt.title("Waiting Time Distribution")
+plt.suptitle("")
+plt.xticks(rotation=45)
+plt.show()
 # ----------------------------
 # MAIN
 # ----------------------------
