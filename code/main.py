@@ -209,9 +209,10 @@ def run_experiments(task_sizes, trials=30):
                 processes = generate_processes(n, seed=42 + t)
                 processes = copy.deepcopy(processes)
 
-                start = time.time()
+                # Accurate empirical timing
+                start = time.perf_counter()
                 completed = algo(processes)
-                end = time.time()
+                end = time.perf_counter()
 
                 avg_wait, avg_turn, throughput = compute_metrics(completed)
 
@@ -219,10 +220,11 @@ def run_experiments(task_sizes, trials=30):
                     "tasks": n,
                     "trial": t,
                     "algorithm": name,
-                    "waiting": avg_wait,
-                    "turnaround": avg_turn,
-                    "throughput": throughput,
-                    "runtime": end - start
+                    "waiting": round(avg_wait, 2),
+                    "turnaround": round(avg_turn, 2),
+                    "throughput": round(throughput, 3),
+                    "runtime": round(end - start, 6)
+
                 })
 
         print(f"Completed {n} tasks")
@@ -250,7 +252,7 @@ def save_results(results, filename="results.csv"):
 def create_summary(filename="results.csv"):
     df = pd.read_csv(filename)
 
-    # Round for readability
+    # Round raw values for readability
     df["waiting"] = df["waiting"].round(2)
     df["turnaround"] = df["turnaround"].round(2)
     df["throughput"] = df["throughput"].round(3)
@@ -271,12 +273,18 @@ def create_summary(filename="results.csv"):
         "runtime_mean"
     ]
 
+    # FINAL ROUNDING OF SUMMARY VALUES
+    summary["wait_mean"] = summary["wait_mean"].round(2)
+    summary["wait_std"] = summary["wait_std"].round(2)
+    summary["turn_mean"] = summary["turn_mean"].round(2)
+    summary["turn_std"] = summary["turn_std"].round(2)
+    summary["throughput_mean"] = summary["throughput_mean"].round(3)
+    summary["runtime_mean"] = summary["runtime_mean"].round(6)
+
     summary.to_csv("summary_results.csv", index=False)
     print("Saved clean summary → summary_results.csv")
 
-# ----------------------------
-# Boxplot matplot
-# ----------------------------
+
 
 # ----------------------------
 # MAIN
@@ -287,10 +295,21 @@ if __name__ == "__main__":
 
     save_results(results)
     create_summary()
+
     # Load results for plotting
     df = pd.read_csv("results.csv")
+
+    # Waiting time boxplot
     df.boxplot(column="waiting", by=["algorithm", "tasks"])
     plt.title("Waiting Time Distribution")
     plt.suptitle("")
     plt.xticks(rotation=45)
+    plt.show()
+
+    # Runtime boxplot
+    df.boxplot(column="runtime", by=["algorithm", "tasks"])
+    plt.title("Execution Time Distribution")
+    plt.suptitle("")
+    plt.xticks(rotation=45)
+    plt.ylabel("Seconds")
     plt.show()
