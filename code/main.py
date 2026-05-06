@@ -247,7 +247,7 @@ def save_results(results, filename="results.csv"):
 
 
 # ----------------------------
-# Create CLEAN Summary CSV
+# Create Clean Summary CSV
 # ----------------------------
 def create_summary(filename="results.csv"):
     df = pd.read_csv(filename)
@@ -287,11 +287,11 @@ def create_summary(filename="results.csv"):
 
 
 # ----------------------------
-# MAIN
+# Main
 # ----------------------------
 if __name__ == "__main__":
-    task_sizes = [10, 50, 100, 500]
-    results = run_experiments(task_sizes, trials=30)
+    task_sizes = [10, 50, 100, 500, 1000, 2000]
+    results = run_experiments(task_sizes, trials=5)
 
     save_results(results)
     create_summary()
@@ -299,17 +299,42 @@ if __name__ == "__main__":
     # Load results for plotting
     df = pd.read_csv("results.csv")
 
-    # Waiting time boxplot
-    df.boxplot(column="waiting", by=["algorithm", "tasks"])
-    plt.title("Waiting Time Distribution")
-    plt.suptitle("")
-    plt.xticks(rotation=45)
-    plt.show()
+    grouped = df.groupby(["tasks", "algorithm"])["runtime"].mean().reset_index()
+    algorithms = grouped["algorithm"].unique()
 
-    # Runtime boxplot
-    df.boxplot(column="runtime", by=["algorithm", "tasks"])
-    plt.title("Execution Time Distribution")
-    plt.suptitle("")
-    plt.xticks(rotation=45)
-    plt.ylabel("Seconds")
+    for algo in algorithms:
+        plt.figure()
+
+        data = grouped[grouped["algorithm"] == algo]
+
+        plt.plot(data["tasks"], data["runtime"], marker='o', label=algo)
+
+        plt.title(f"{algo} Runtime Scaling")
+        plt.xlabel("Number of Tasks")
+        plt.ylabel("Average Execution Time (seconds)")
+
+        plt.legend()   
+        plt.grid()
+
+        plt.show()
+
+        plt.figure()
+
+# ----------------------------
+# Combined graph
+# ----------------------------
+    plt.figure()
+
+    for algo in algorithms:
+        data = grouped[grouped["algorithm"] == algo]
+        plt.plot(data["tasks"], data["runtime"], marker='o', label=algo)
+
+    # Set labels AFTER plotting all lines
+    plt.title("Runtime Scaling Comparison")
+    plt.xlabel("Number of Tasks")
+    plt.ylabel("Average Execution Time (seconds)")
+
+    plt.legend(title="Scheduling Algorithm")
+    plt.grid()
+
     plt.show()
