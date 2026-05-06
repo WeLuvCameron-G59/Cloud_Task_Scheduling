@@ -290,7 +290,7 @@ def create_summary(filename="results.csv"):
 # Main
 # ----------------------------
 if __name__ == "__main__":
-    task_sizes = [10, 50, 100, 500, 1000, 2000]
+    task_sizes = [10, 50, 100, 500, 1000, 5000, 10000]
     results = run_experiments(task_sizes, trials=5)
 
     save_results(results)
