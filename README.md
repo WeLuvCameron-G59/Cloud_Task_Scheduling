@@ -2,6 +2,9 @@
 Team members:
 Cameron Bailey, Bryant Peden
 
+Video for Presentation:
+https://youtu.be/6JVhnhoesv8?si=RwcRlLhrr2tKjgbp
+
 This project presents an empirical analysis of multiple cloud task scheduling algorithms in distributed systems.
 The goal of this study is to compare traditional scheduling algorithms against a metaheuristic optimization algorithm under controlled workloads of increasing size.
 
